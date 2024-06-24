@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gantt Chart</title>
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        window.mermaid = mermaid;
+        mermaid.initialize({ startOnLoad: false });
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+</head>
+<body>
+    <h1>Gantt Chart</h1>
+    <input type="date" id="datePicker" />
+    <button onclick="loadGanttChart()">Load Gantt Chart</button>
+    <div id="mermaid" class="mermaid"></div>
+
+    <script>
+        function loadGanttChart() {
+            const date = document.getElementById('datePicker').value;
+            if (!date) {
+                alert('Please select a date');
+                return;
+            }
+
+            const filePath = `${date}.csv`; // 選択した日付に基づいてファイル名を決定
+
+            fetch(filePath)
+                .then(response => response.text())
+                .then(csvText => {
+                    const data = Papa.parse(csvText, { header: true }).data;
+                    const filteredData = data.filter(row => row.Date === date); // 'date'列を'Date'に修正
+
+                    let mermaidText = `
+                        gantt
+                        dateFormat  HH:mm
+                        axisFormat  %H:%M
+                    `;
+
+                    mermaidText += "\nsection Planned Schedule\n";
+                    filteredData.filter(row => row.Type === 'planned').forEach(task => {
+                        if (task.Start >= task.End) {
+                            console.error(`Error: Invalid time range for task ${task.Title} (${task.Start} - ${task.End})`);
+                        }
+                        mermaidText += `${task.Title} :${task.Status}, ${task.Start}, ${task.End}\n`;
+                    });
+
+                    mermaidText += "\nsection Actual Performance\n";
+                    filteredData.filter(row => row.Type === 'actual').forEach(task => {
+                        if (task.Start >= task.End) {
+                            console.error(`Error: Invalid time range for task ${task.Title} (${task.Start} - ${task.End})`);
+                        }
+                        mermaidText += `${task.Title} :${task.Status}, ${task.Start}, ${task.End}\n`;
+                    });
+
+                    console.log(mermaidText.trim());
+                    document.getElementById('mermaid').innerHTML = mermaidText.trim();
+                    mermaid.init(undefined, document.getElementById('mermaid'));
+                })
+                .catch(error => {
+                    console.error('Error loading CSV file:', error);
+                    alert('Failed to load the CSV file. Please ensure the file exists and try again.');
+                });
+        }
+    </script>
+</body>
+</html>
